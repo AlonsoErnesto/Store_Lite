@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "frame-src 'self' https://checkout.culqi.com https://*.culqi.com",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.culqi.com https://checkout.culqi.com https://*.culqi.com https://*.posthog.com https://www.facebook.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.culqi.com https://checkout.culqi.com https://*.culqi.com https://*.posthog.com https://graph.facebook.com https://www.facebook.com",
             ].join('; '),
           },
           {
