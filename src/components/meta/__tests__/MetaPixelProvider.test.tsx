@@ -136,6 +136,24 @@ describe('MetaPixelProvider', () => {
     expect(trackPageView).toHaveBeenCalledTimes(2);
   });
 
+  it('fires PageView for the current route when navigation happens before the library is ready', async () => {
+    const { rerender } = render(<MetaPixelProvider />);
+
+    // Navigate while the pixel library is still loading: the firing effect
+    // must observe the CURRENT pathname once `ready` lands — a navigation
+    // during the load window must not be lost to a stale closure.
+    mockPathname.current = '/pricing';
+    rerender(<MetaPixelProvider />);
+
+    await loadPixel();
+
+    expect(trackPageView).toHaveBeenCalledTimes(1);
+    expect(trackViewContent).toHaveBeenCalledWith({
+      content_type: 'product',
+      content_name: 'Plan',
+    });
+  });
+
   it('renders nothing when consent is declined', () => {
     document.cookie = `${COOKIE_NAME}=declined; Path=/`;
     const { container } = render(<MetaPixelProvider />);
