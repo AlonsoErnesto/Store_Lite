@@ -44,6 +44,14 @@ export const env = {
   // CRON_SECRET / cron_secret — protege los endpoints cron contra acceso público.
   //   Las llamadas desde Supabase pg_cron deben incluir este token.
   cronSecret: process.env.CRON_SECRET || process.env.cron_secret || '',
+  // Meta Pixel + Conversions API (CAPI) — tracking consent-gated (ver sl_consent_status).
+  //   NEXT_PUBLIC_META_PIXEL_ID: público, usado por el pixel en el navegador.
+  //   META_CAPI_ACCESS_TOKEN: solo server-side, NUNCA exponer al cliente.
+  //   META_TEST_EVENT_CODE: opcional, para validar eventos en Meta Events Manager.
+  //   Todos con fallback vacío: sin config, warnings y no-op (el app nunca crashea).
+  metaPixelId: process.env.NEXT_PUBLIC_META_PIXEL_ID || '',
+  metaCapiAccessToken: process.env.META_CAPI_ACCESS_TOKEN || '',
+  metaTestEventCode: process.env.META_TEST_EVENT_CODE || '',
 } as const;
 
 // Optional: Add validation here to throw early if vars are missing
@@ -70,4 +78,13 @@ if (!process.env.OTP_HASH_SECRET) {
     '[OTP] OTP_HASH_SECRET not set. Using DEV FALLBACK — DO NOT USE IN PRODUCTION. ' +
       'Set a strong random string in production.',
   );
+}
+
+// Meta Pixel / CAPI validation — warn-if-missing, never crash.
+// El pixel funciona sin token CAPI; CAPI no envía nada sin token.
+if (!env.metaPixelId) {
+  console.warn('NEXT_PUBLIC_META_PIXEL_ID is missing. Meta Pixel tracking will not load.');
+}
+if (!env.metaCapiAccessToken) {
+  console.warn('META_CAPI_ACCESS_TOKEN is missing. Meta CAPI events will not be sent.');
 }

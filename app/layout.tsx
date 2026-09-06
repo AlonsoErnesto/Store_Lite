@@ -1,3 +1,4 @@
+import ConsentBanner from '@/components/consent/ConsentBanner';
 import { env } from '@/config/env';
 import { AuthProvider } from '@/features/auth';
 import { MaterialWebInit } from '@/lib/material-design/MaterialWebInit';
@@ -108,6 +109,7 @@ export default function RootLayout({
               <MaterialWebInit />
               <WebVitalsReporter />
               {children}
+              <ConsentBanner />
             </AuthProvider>
           </ThemeProvider>
         </CSPostHogProvider>
