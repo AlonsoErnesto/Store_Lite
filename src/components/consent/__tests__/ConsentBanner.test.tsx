@@ -1,9 +1,18 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ConsentBanner from '@/components/consent/ConsentBanner';
 import { COOKIE_NAME } from '@/lib/consent/consent';
+import { isPlatformTrackingPage } from '@/lib/meta/tenantGuard';
+
+// Mock the tracking guard so tenant-host / /auth/customer denial is testable
+// in jsdom (the real guard always passes on localhost:'/').
+vi.mock('@/lib/meta/tenantGuard', () => ({
+  isPlatformTrackingPage: vi.fn(),
+}));
+
+const mockedIsPlatformTrackingPage = vi.mocked(isPlatformTrackingPage);
 
 const BANNER_TITLE = /Valoramos tu privacidad/i;
 const RESET_LABEL = /Cambiar preferencias/i;
@@ -20,6 +29,10 @@ function setCookie(name: string, value: string) {
 }
 
 describe('ConsentBanner', () => {
+  beforeEach(() => {
+    mockedIsPlatformTrackingPage.mockReturnValue(true);
+  });
+
   afterEach(() => {
     clearAllCookies();
   });
@@ -78,5 +91,15 @@ describe('ConsentBanner', () => {
     expect(document.cookie).not.toContain(`${COOKIE_NAME}=accepted`);
     expect(await screen.findByRole('button', { name: 'Aceptar' })).toBeInTheDocument();
     expect(screen.getByText(BANNER_TITLE)).toBeInTheDocument();
+  });
+
+  it('renders nothing when the tracking guard denies the page (tenant host or /auth/customer)', () => {
+    mockedIsPlatformTrackingPage.mockReturnValue(false);
+    const { container } = render(<ConsentBanner />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aceptar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: RESET_LABEL })).not.toBeInTheDocument();
   });
 });
