@@ -1,3 +1,5 @@
+'use client';
+
 import { getConsentState } from '@/lib/consent/consentClient';
 
 import { trackEvent } from './fbq';
