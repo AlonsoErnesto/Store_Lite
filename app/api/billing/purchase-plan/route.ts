@@ -328,30 +328,28 @@ export async function POST(request: Request) {
       const eventSourceUrl = referer ?? '/pricing';
       const fbclid = referer ? extractFbclid(new URL(referer), referer) : undefined;
 
-      try {
-        fireEvent('Purchase', {
-          eventId,
-          eventSourceUrl,
-          externalId: user.id,
-          email: buyerEmail,
-          fullName: buyerFullName,
-          clientIpAddress: request.headers.get('x-forwarded-for') ?? undefined,
-          clientUserAgent: request.headers.get('user-agent') ?? undefined,
-          fbp: getCookie(cookieHeader, '_fbp'),
-          fbc: getCookie(cookieHeader, '_fbc'),
-          fbclid,
-          customData: {
-            value: totalSoles,
-            currency: 'PEN',
-            plan_type: planType,
-            period,
-            payment_method: paymentMethod,
-            culqi_charge_id: culqiData.id,
-          },
-        });
-      } catch {
-        // CAPI is entirely fire-and-forget — ignore any surprise.
-      }
+      // fireEvent never throws and never rejects (capi.ts swallows internally);
+      // it is deliberately NOT awaited — tracking must never slow the purchase.
+      fireEvent('Purchase', {
+        eventId,
+        eventSourceUrl,
+        externalId: user.id,
+        email: buyerEmail,
+        fullName: buyerFullName,
+        clientIpAddress: request.headers.get('x-forwarded-for') ?? undefined,
+        clientUserAgent: request.headers.get('user-agent') ?? undefined,
+        fbp: getCookie(cookieHeader, '_fbp'),
+        fbc: getCookie(cookieHeader, '_fbc'),
+        fbclid,
+        customData: {
+          value: totalSoles,
+          currency: 'PEN',
+          plan_type: planType,
+          period,
+          payment_method: paymentMethod,
+          culqi_charge_id: culqiData.id,
+        },
+      });
     }
 
     return NextResponse.json({
