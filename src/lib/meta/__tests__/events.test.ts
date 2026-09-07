@@ -1,12 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { COOKIE_NAME } from '@/lib/consent/consent';
-import type { trackPageView, trackViewContent } from '../events';
+import type {
+  trackInitiateCheckout,
+  trackPageView,
+  trackPurchase,
+  trackViewContent,
+} from '../events';
 import type { initFbq } from '../fbq';
 
 interface EventsModule {
   trackPageView: typeof trackPageView;
   trackViewContent: typeof trackViewContent;
+  trackInitiateCheckout: typeof trackInitiateCheckout;
+  trackPurchase: typeof trackPurchase;
 }
 interface FbqModule {
   initFbq: typeof initFbq;
@@ -103,5 +110,42 @@ describe('consent-gated event helpers', () => {
     events.trackPageView('evt-abc');
 
     expect(spy).toHaveBeenCalledWith('track', 'PageView', { eventID: 'evt-abc' });
+  });
+
+  it('fires InitiateCheckout with typed data and its own eventID when consent is accepted', () => {
+    setConsentCookie('accepted');
+    fbq.initFbq(TEST_PIXEL);
+
+    events.trackInitiateCheckout({ value: 89.9, currency: 'PEN' }, 'evt-ic');
+
+    expect(spy).toHaveBeenCalledWith('track', 'InitiateCheckout', {
+      value: 89.9,
+      currency: 'PEN',
+      eventID: 'evt-ic',
+    });
+  });
+
+  it('fires Purchase with value/currency and the shared server eventID when consent is accepted', () => {
+    setConsentCookie('accepted');
+    fbq.initFbq(TEST_PIXEL);
+
+    events.trackPurchase({ value: 89.9, currency: 'PEN' }, 'evt-shared');
+
+    expect(spy).toHaveBeenCalledWith('track', 'Purchase', {
+      value: 89.9,
+      currency: 'PEN',
+      eventID: 'evt-shared',
+    });
+  });
+
+  it('does not fire InitiateCheckout or Purchase when consent is declined', () => {
+    setConsentCookie('declined');
+    fbq.initFbq(TEST_PIXEL);
+
+    events.trackInitiateCheckout({ value: 89.9, currency: 'PEN' }, 'evt-ic');
+    events.trackPurchase({ value: 89.9, currency: 'PEN' }, 'evt-shared');
+
+    expect(spy).not.toHaveBeenCalledWith('track', 'InitiateCheckout', expect.anything());
+    expect(spy).not.toHaveBeenCalledWith('track', 'Purchase', expect.anything());
   });
 });

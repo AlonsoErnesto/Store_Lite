@@ -8,6 +8,8 @@ import {
   type PurchasePlanIssuer,
   type PurchasePlanResult,
 } from '@/features/billing/hooks/usePurchasePlan';
+import { generateEventId } from '@/lib/meta/eventId';
+import { trackInitiateCheckout, trackPurchase } from '@/lib/meta/events';
 import { splitIgv } from '@/shared/billing/planPrices';
 import { Dialog, Select } from '@/shared/components/ui';
 import { Button } from '@/shared/components/ui/buttons/Button';
@@ -114,6 +116,9 @@ export function PricingCard({
     setIsPaymentDialogOpen(true);
     setStep('select');
 
+    // Meta pixel: checkout intent, browser-only (own event id, CAPI has no twin)
+    trackInitiateCheckout({ value: Number(price), currency: 'PEN' }, generateEventId());
+
     // Pre-cargar Culqi asíncronamente mientras el usuario selecciona negocio
     loadCulqiScript(process.env.NEXT_PUBLIC_CULQI_PK || '').catch((e) =>
       console.error('Error cargando culqi:', e),
@@ -175,6 +180,9 @@ export function PricingCard({
     });
 
     if (res) {
+      // Meta pixel+server twin: same event_id as the CAPI Purchase (dedup).
+      trackPurchase({ value: Number(price), currency: 'PEN' }, res.eventId);
+
       setStep('success');
       confetti({
         particleCount: 150,

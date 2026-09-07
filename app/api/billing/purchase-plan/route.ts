@@ -22,6 +22,10 @@ import {
   type SubscriptionPlan,
 } from '@/core/database/schema';
 import { requireOwnedBusinessById } from '@/features/storage/actions/authz';
+import { getConsentState } from '@/lib/consent/consentServer';
+import { fireEvent } from '@/lib/meta/capi';
+import { generateEventId } from '@/lib/meta/eventId';
+import { extractFbclid, getCookie } from '@/lib/meta/payload';
 import { createClient } from '@/lib/supabase/server';
 import { PLAN_PRICES, splitIgv } from '@/shared/billing/planPrices';
 import { splitFullName } from '@/shared/payments/fullName';
@@ -304,12 +308,57 @@ export async function POST(request: Request) {
       planPayment.ticketCorrelative,
     );
 
+    // ── Meta CAPI: fire-and-forget Purchase ──────────────────────────────────
+    // Marketing attribution must NEVER slow down or break the purchase (design
+    // D4). Consent is re-checked server-side (client state alone never
+    // authorizes server sends); `cookies()` can throw outside the request scope
+    // in tests, so the whole block fails silently into a normal purchase.
+    let eventId: string | undefined;
+    let consentState: string | undefined;
+    try {
+      consentState = await getConsentState();
+    } catch {
+      consentState = undefined;
+    }
+
+    if (consentState === 'accepted') {
+      eventId = generateEventId();
+      const cookieHeader = request.headers.get('cookie');
+      const referer = request.headers.get('referer');
+      const eventSourceUrl = referer ?? '/pricing';
+      const fbclid = referer ? extractFbclid(new URL(referer), referer) : undefined;
+
+      // fireEvent never throws and never rejects (capi.ts swallows internally);
+      // it is deliberately NOT awaited — tracking must never slow the purchase.
+      fireEvent('Purchase', {
+        eventId,
+        eventSourceUrl,
+        externalId: user.id,
+        email: buyerEmail,
+        fullName: buyerFullName,
+        clientIpAddress: request.headers.get('x-forwarded-for') ?? undefined,
+        clientUserAgent: request.headers.get('user-agent') ?? undefined,
+        fbp: getCookie(cookieHeader, '_fbp'),
+        fbc: getCookie(cookieHeader, '_fbc'),
+        fbclid,
+        customData: {
+          value: totalSoles,
+          currency: 'PEN',
+          plan_type: planType,
+          period,
+          payment_method: paymentMethod,
+          culqi_charge_id: culqiData.id,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       planPaymentId: planPayment.id,
       ticketNumber,
       planActivatedUntil: planEndDate.toISOString(),
       amountTotal: totalSoles,
+      ...(eventId ? { eventId } : {}),
       issuer: {
         ruc: issuer.ruc,
         name: issuer.razonSocial,

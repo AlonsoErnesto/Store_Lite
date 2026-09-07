@@ -38,6 +38,8 @@ export interface PurchasePlanResult {
   ticketNumber: string;
   planActivatedUntil: string;
   amountTotal: number;
+  /** Present only when server-side Meta CAPI fired (consent accepted). */
+  eventId?: string;
   ticketUrl?: string;
   issuer?: PurchasePlanIssuer;
 }
