@@ -216,10 +216,16 @@ describe('purchase-plan → Meta CAPI wiring', () => {
     expect(mockFireEvent).not.toHaveBeenCalled();
   });
 
-  test('keeps the purchase response intact when CAPI firing throws', async () => {
-    mockFireEvent.mockImplementation(() => {
-      throw new Error('CAPI boom');
+  test('returns the purchase response without awaiting the CAPI send', async () => {
+    // fireEvent NEVER throws and never rejects (capi.ts swallows internally);
+    // the only realistic failure is a slow CAPI request. Hold the mock's
+    // promise unresolved: if the route awaited it, POST could not return.
+    let releaseCapi = () => {};
+    const capiInFlight = new Promise<void>((resolve) => {
+      releaseCapi = resolve;
     });
+    mockFireEvent.mockReturnValue(capiInFlight);
+
     const { POST } = await import('@/app/api/billing/purchase-plan/route');
     const request = new Request('http://localhost/api/billing/purchase-plan', {
       method: 'POST',
@@ -230,9 +236,12 @@ describe('purchase-plan → Meta CAPI wiring', () => {
     const response = await POST(request);
     const body = await response.json();
 
+    // Response arrives while the CAPI send is still in flight → not awaited.
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.planPaymentId).toBe('payment_001');
-    expect(body.issuer.ruc).toBe('10741399852');
+    expect(mockFireEvent).toHaveBeenCalledTimes(1);
+
+    await releaseCapi(); // resolve the in-flight promise to clean up
   });
 });
