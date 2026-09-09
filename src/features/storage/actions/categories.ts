@@ -1,14 +1,52 @@
 'use server';
 
+import { env } from '@/config/env';
 import { db } from '@/core/database/client';
 import { productCategories } from '@/core/database/schema';
 import { getUniqueCategorySlug } from '@/shared/utils/categorySlug';
+import { createClient } from '@supabase/supabase-js';
 import { eq, sql } from 'drizzle-orm';
 
 import { getBusinessEntitlements } from '@/core/entitlements';
 import { logError } from '@/lib/errorHandling';
 import { revalidatePath } from 'next/cache';
 import { requireAccess } from './authz';
+
+const CATEGORY_BUCKET = 'products';
+const CATEGORY_PREFIX = 'categories';
+
+function createAdminClient() {
+  return createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+/**
+ * Deletes a category image from storage, but only when its path belongs
+ * to the given business. Never trusts raw URLs from the client.
+ */
+async function deleteCategoryImage(businessId: string, url: string | null): Promise<void> {
+  if (!url || !url.includes(CATEGORY_BUCKET)) return;
+
+  const parts = url.split(`${CATEGORY_BUCKET}/`);
+  if (parts.length < 2) return;
+
+  const filePath = parts[1];
+  const expectedPrefix = `${CATEGORY_PREFIX}/${businessId}/`;
+  if (!filePath.startsWith(expectedPrefix)) {
+    console.warn('[deleteCategoryImage] Path outside categories, skipping deletion:', filePath);
+    return;
+  }
+
+  const { error } = await createAdminClient().storage.from(CATEGORY_BUCKET).remove([filePath]);
+  if (error) {
+    console.warn('[deleteCategoryImage] Failed to remove previous image:', error.message);
+  }
+}
 
 export async function getProductCategories(slug: string) {
   try {
@@ -114,7 +152,7 @@ export async function deleteCategory(businessSlug: string, categoryId: string) {
     const category = await db.query.productCategories.findFirst({
       where: (categories, { and, eq }) =>
         and(eq(categories.id, categoryId), eq(categories.businessId, businessId)),
-      columns: { id: true, name: true },
+      columns: { id: true, name: true, imageUrl: true },
     });
 
     if (!category) {
@@ -122,6 +160,9 @@ export async function deleteCategory(businessSlug: string, categoryId: string) {
     }
 
     await db.delete(productCategories).where(eq(productCategories.id, categoryId));
+
+    // Clean up the stored image (if any) after the DB row is gone.
+    await deleteCategoryImage(businessId, category.imageUrl);
 
     revalidatePath(`/${businessSlug}`);
     revalidatePath(`/${businessSlug}/storage`);
@@ -150,7 +191,7 @@ export async function updateCategory(
     const category = await db.query.productCategories.findFirst({
       where: (categories, { and, eq }) =>
         and(eq(categories.id, categoryId), eq(categories.businessId, businessId)),
-      columns: { id: true },
+      columns: { id: true, imageUrl: true },
     });
 
     if (!category) {
@@ -169,7 +210,14 @@ export async function updateCategory(
       return { success: true };
     }
 
+    const previousImageUrl = category.imageUrl;
+
     await db.update(productCategories).set(updateData).where(eq(productCategories.id, categoryId));
+
+    // Clean up the previous image only when it was replaced or removed.
+    if (data.imageUrl !== undefined && previousImageUrl && previousImageUrl !== data.imageUrl) {
+      await deleteCategoryImage(businessId, previousImageUrl);
+    }
 
     revalidatePath(`/${businessSlug}`);
     revalidatePath(`/${businessSlug}/storage`);
