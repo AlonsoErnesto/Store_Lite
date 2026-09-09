@@ -39,6 +39,7 @@ export function ImageCropModal({ file, onCancel, onApply }: ImageCropModalProps)
   const [frameSide, setFrameSide] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const panRef = useRef(pan);
   panRef.current = pan;
   const dragStartRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null);
@@ -54,6 +55,7 @@ export function ImageCropModal({ file, onCancel, onApply }: ImageCropModalProps)
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setFrameSide(0);
+    setError(null);
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
@@ -137,7 +139,11 @@ export function ImageCropModal({ file, onCancel, onApply }: ImageCropModalProps)
     context.drawImage(image, sourceX, sourceY, cropSize, cropSize, 0, 0, 512, 512);
     canvas.toBlob((blob) => {
       setIsProcessing(false);
-      if (!blob) return;
+      if (!blob) {
+        setError('No se pudo generar la imagen recortada. Probá de nuevo.');
+        return;
+      }
+      setError(null);
       onApply(
         new File([blob], file.name.replace(/\.[^/.]+$/, '') + '-cropped.png', {
           type: 'image/png',
@@ -213,6 +219,11 @@ export function ImageCropModal({ file, onCancel, onApply }: ImageCropModalProps)
             disabled={isProcessing}
           />
         </label>
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
         <footer className={styles.actions}>
           <button
             type="button"
