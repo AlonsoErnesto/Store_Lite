@@ -1,3 +1,4 @@
+import { compressImageToMaxSize } from '@/shared/utils/image';
 import {
   deleteProductImageAction,
   uploadCategoryImageAction,
@@ -15,12 +16,21 @@ export const uploadProductImage = async (
     throw new Error('Business ID is required for uploading images');
   }
 
+  const compressedFile = await compressImageToMaxSize(file);
+
   console.warn('[uploadProductImage] Preparing FormData for server action...');
   console.warn('[uploadProductImage] businessId:', businessId);
-  console.warn('[uploadProductImage] file:', file.name, file.size, file.type);
+  console.warn(
+    '[uploadProductImage] file:',
+    file.name,
+    file.size,
+    '-> compressed:',
+    compressedFile.size,
+    compressedFile.type,
+  );
 
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', compressedFile);
   formData.append('businessId', businessId);
 
   const { publicUrl, error } = await uploadProductImageAction(formData);
@@ -54,8 +64,9 @@ export async function deleteProductImage(url: string): Promise<void> {
  * Uploads a category image via server action (bypasses RLS with service role key).
  */
 export const uploadCategoryImage = async (file: File, businessSlug: string): Promise<string> => {
+  const compressedFile = await compressImageToMaxSize(file);
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', compressedFile);
   formData.append('businessSlug', businessSlug);
 
   const { publicUrl, error } = await uploadCategoryImageAction(formData);

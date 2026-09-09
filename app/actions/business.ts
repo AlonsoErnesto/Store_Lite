@@ -14,7 +14,7 @@ export interface ActionState extends BaseActionState {
   url?: string;
 }
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGE_UPLOAD_SIZE = 300 * 1024;
 
 /**
  * Creates a Supabase client with the service role key.
@@ -87,7 +87,8 @@ export async function updateBusinessLogo(
   const file = formData.get('file') as File;
 
   if (!file) return { error: 'No se ha proporcionado ninguna imagen.' };
-  if (file.size > MAX_FILE_SIZE) return { error: 'La imagen excede el límite de 1MB.' };
+  if (file.size > MAX_IMAGE_UPLOAD_SIZE)
+    return { error: 'La imagen comprimida excede el límite de 300KB.' };
 
   // 1. Verify user is authenticated
   const supabaseUser = await createUserAuthClient();
@@ -260,9 +261,9 @@ export async function updateBusinessCover(
     console.warn('[updateBusinessCover] No file provided in formData');
     return { error: 'No se ha proporcionado ninguna imagen.' };
   }
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > MAX_IMAGE_UPLOAD_SIZE) {
     console.warn('[updateBusinessCover] File too large:', file.size);
-    return { error: 'La imagen excede el límite de 1MB.' };
+    return { error: 'La imagen comprimida excede el límite de 300KB.' };
   }
 
   console.warn('[updateBusinessCover] Starting upload:', {
@@ -410,7 +411,8 @@ export async function addHeroImage(
 ): Promise<ActionState> {
   const file = formData.get('file') as File;
   if (!file) return { error: 'No se ha proporcionado ninguna imagen.' };
-  if (file.size > MAX_FILE_SIZE) return { error: 'La imagen excede el límite de 5MB.' };
+  if (file.size > MAX_IMAGE_UPLOAD_SIZE)
+    return { error: 'La imagen comprimida excede el límite de 300KB.' };
 
   // 1. Authenticate & authorize
   const supabaseUser = await createUserAuthClient();
