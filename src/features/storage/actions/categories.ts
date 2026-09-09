@@ -36,6 +36,13 @@ async function deleteCategoryImage(businessId: string, url: string | null): Prom
   if (parts.length < 2) return;
 
   const filePath = parts[1];
+
+  // Reject traversal attempts up front; the prefix check below does NOT stop "..".
+  if (filePath.includes('..')) {
+    console.warn('[deleteCategoryImage] Path contains traversal, skipping deletion:', filePath);
+    return;
+  }
+
   const expectedPrefix = `${CATEGORY_PREFIX}/${businessId}/`;
   if (!filePath.startsWith(expectedPrefix)) {
     console.warn('[deleteCategoryImage] Path outside categories, skipping deletion:', filePath);
