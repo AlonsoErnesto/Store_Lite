@@ -362,6 +362,7 @@ export default function Step1General({
               tabIndex={-1}
               onChange={(e) => {
                 onFileChange?.(e.target.files?.[0] || null);
+                e.target.value = '';
               }}
             />
           </div>
