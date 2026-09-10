@@ -2,7 +2,10 @@
 
 import { env } from '@/config/env';
 import { createClient } from '@supabase/supabase-js';
-import { validateProductImageFile } from '../utils/productImageValidation';
+import {
+  MAX_PRODUCT_IMAGE_UPLOAD_SIZE_BYTES,
+  validateProductImageFile,
+} from '../utils/productImageValidation';
 import { requireOwnedBusinessById, requireOwnedBusinessBySlug } from './authz';
 
 const BUCKET_NAME = 'products';
@@ -31,7 +34,7 @@ export async function uploadProductImageAction(
     return { publicUrl: null, error: 'Business ID es requerido' };
   }
 
-  const fileValidationError = validateProductImageFile(file);
+  const fileValidationError = validateProductImageFile(file, MAX_PRODUCT_IMAGE_UPLOAD_SIZE_BYTES);
   if (fileValidationError) {
     return { publicUrl: null, error: fileValidationError };
   }
@@ -125,7 +128,7 @@ export async function uploadCategoryImageAction(
     return { publicUrl: null, error: 'Business slug es requerido' };
   }
 
-  const fileValidationError = validateProductImageFile(file);
+  const fileValidationError = validateProductImageFile(file, MAX_PRODUCT_IMAGE_UPLOAD_SIZE_BYTES);
   if (fileValidationError) {
     return { publicUrl: null, error: fileValidationError };
   }

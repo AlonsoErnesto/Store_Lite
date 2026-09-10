@@ -1,6 +1,7 @@
 import type { SaveProductMediaItem } from '@/types/storage';
 
 export const MAX_PRODUCT_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_PRODUCT_IMAGE_UPLOAD_SIZE_BYTES = 300 * 1024;
 export const PRODUCT_IMAGE_WARNING_SIZE_BYTES = 1 * 1024 * 1024; // 1MB — umbral para warning
 
 export const ALLOWED_PRODUCT_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -23,13 +24,18 @@ export function estimatePayloadSize(files: SaveProductMediaItem[]): number {
   return total;
 }
 
-export function validateProductImageFile(file: File): string | null {
+export function validateProductImageFile(
+  file: File,
+  maxSizeBytes = MAX_PRODUCT_IMAGE_SIZE_BYTES,
+): string | null {
   if (file.size === 0) {
     return 'Archivo no válido o vacío';
   }
 
-  if (file.size > MAX_PRODUCT_IMAGE_SIZE_BYTES) {
-    return 'La imagen excede el tamaño máximo permitido (5MB)';
+  if (file.size > maxSizeBytes) {
+    return maxSizeBytes === MAX_PRODUCT_IMAGE_UPLOAD_SIZE_BYTES
+      ? 'La imagen comprimida excede el tamaño máximo permitido (300KB)'
+      : 'La imagen excede el tamaño máximo permitido (5MB)';
   }
 
   const extension = file.name.split('.').pop()?.toLowerCase() ?? '';

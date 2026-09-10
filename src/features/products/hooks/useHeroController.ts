@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Business } from '@/types/business';
 
+import { compressImageToMaxSize } from '@/shared/utils/image';
 import { addHeroImage, deleteHeroImage, removeBusinessCover } from '@app/actions/business';
 
 interface HeroControllerParams {
@@ -370,8 +371,11 @@ export function useHeroController({ business }: HeroControllerParams) {
     if (!business) return;
 
     try {
+      const compressedFile = await compressImageToMaxSize(
+        new File([blob], 'hero.jpg', { type: 'image/jpeg' }),
+      );
       const formData = new FormData();
-      formData.append('file', blob, 'hero.jpg');
+      formData.append('file', compressedFile);
       const result = await addHeroImage(business.id, business.slug, formData);
 
       if (result.success && result.url) {
