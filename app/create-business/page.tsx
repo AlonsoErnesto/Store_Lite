@@ -4,6 +4,7 @@ import { createDefaultStorefrontTheme, type StorefrontTheme } from '@/core/store
 import { Button, Icon } from '@/shared/components/ui';
 import { CircularProgress } from '@/shared/components/ui/feedback';
 import { AlertSnackbar } from '@/shared/components/ui/feedback/AlertSnackbar';
+import { ImageCropModal } from '@/shared/components/ui/inputs/ImageCropModal';
 import { optimizeImage } from '@/shared/utils/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -27,6 +28,7 @@ export default function CreateBusinessPage() {
   // Derivated state: cualquier campo con formData.phone === verifiedPhone muestra "✓ Verificado"
   const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoToCrop, setLogoToCrop] = useState<File | null>(null);
   const [formData, setFormData] = useState<BusinessData>({
     personType: 'natural',
     country: 'Perú',
@@ -136,31 +138,50 @@ export default function CreateBusinessPage() {
       return;
     }
 
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
-      if (img.width < 256 || img.height < 256) {
+    setLogoToCrop(file);
+  };
+
+  const handleCroppedLogo = (file: File) => {
+    setLogoToCrop(null);
+
+    // Convertimos el logo a dataURL (no blob:) porque html-to-image procesa
+    // con fetch() las imágenes que no son data: URLs y el fetch de blob:
+    // falla en varios navegadores → logo blanco en el PNG descargado.
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null;
+      if (!dataUrl) return;
+
+      const img = new Image();
+      img.onload = () => {
+        if (img.width < 256 || img.height < 256) {
+          setAlert({
+            open: true,
+            message: 'El logo debe tener al menos 256x256 píxeles para una mejor calidad.',
+            color: 'error',
+          });
+        } else {
+          setFormData((prev) => ({ ...prev, logo: file }));
+          setLogoPreview(dataUrl);
+        }
+      };
+      img.onerror = () => {
         setAlert({
           open: true,
-          message: 'El logo debe tener al menos 256x256 píxeles para una mejor calidad.',
+          message: 'Error al cargar la imagen. Asegúrese de que sea un formato válido.',
           color: 'error',
         });
-        URL.revokeObjectURL(objectUrl);
-      } else {
-        setFormData((prev) => ({ ...prev, logo: file }));
-        if (logoPreview) URL.revokeObjectURL(logoPreview);
-        setLogoPreview(objectUrl);
-      }
+      };
+      img.src = dataUrl;
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
+    reader.onerror = () => {
       setAlert({
         open: true,
-        message: 'Error al cargar la imagen. Asegúrese de que sea un formato válido.',
+        message: 'Error al leer el archivo de imagen.',
         color: 'error',
       });
     };
-    img.src = objectUrl;
+    reader.readAsDataURL(file);
   };
 
   const validateStep = (step: number): boolean => {
@@ -387,6 +408,11 @@ export default function CreateBusinessPage() {
         width: '100vw',
       }}
     >
+      <ImageCropModal
+        file={logoToCrop}
+        onCancel={() => setLogoToCrop(null)}
+        onApply={handleCroppedLogo}
+      />
       {/* Exit Button - Only shown if user has businesses */}
       {hasBusinesses && (
         <Button

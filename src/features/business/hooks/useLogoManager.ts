@@ -18,12 +18,11 @@ export function useLogoManager(
     if (!businessId || !businessSlug) return;
 
     setIsUpdatingLogo(true);
-    const compressedFile = await compressImageToMaxSize(file);
-    const formDataObj = new FormData();
-    formDataObj.append('file', compressedFile);
-
     const objectUrl = URL.createObjectURL(file);
     try {
+      const compressedFile = await compressImageToMaxSize(file);
+      const formDataObj = new FormData();
+      formDataObj.append('file', compressedFile);
       const result = await updateBusinessLogo(businessId, businessSlug, formDataObj);
       if (result.success) {
         setLogoPreview(result.url || objectUrl);

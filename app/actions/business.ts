@@ -133,6 +133,24 @@ export async function updateBusinessLogo(
       .set({ logoUrl: publicUrl, updatedAt: new Date() })
       .where(eq(businesses.id, businessId));
 
+    // 6. Remove previous logo files so replaced images do not accumulate
+    const { data: existingFiles } = await adminStorage.storage
+      .from('store-covers')
+      .list(`logos/${businessId}`);
+    if (existingFiles && existingFiles.length > 0) {
+      const staleFiles = existingFiles
+        .filter((item) => item.name !== fileName)
+        .map((item) => `logos/${businessId}/${item.name}`);
+      if (staleFiles.length > 0) {
+        const { error: removeError } = await adminStorage.storage
+          .from('store-covers')
+          .remove(staleFiles);
+        if (removeError) {
+          console.warn('[updateBusinessLogo] Failed to remove stale logos:', removeError);
+        }
+      }
+    }
+
     revalidatePath(`/${slug}`);
     revalidatePath('/list-business');
 
